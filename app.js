@@ -166,6 +166,7 @@ function setupRealtimeSync() {
     recalculateAll();
   }, (error) => {
     console.error("Firestore sync error: ", error);
+    alert("Firestore Sync Error: " + error.message + "\nCode: " + error.code);
   });
 }
 
@@ -364,6 +365,7 @@ async function handleVoteSubmit(e) {
     submitBtn.querySelector("span").textContent = "Availability submitted!";
   } catch (err) {
     console.error("Firestore setDoc failed:", err);
+    alert("Firestore Submit Error: " + err.message + "\nCheck if database is created and security rules allow public write.");
     submitBtn.style.background = "linear-gradient(135deg, #ef4444, #dc2626)";
     submitBtn.querySelector("span").textContent = "Sync Error!";
   } finally {
