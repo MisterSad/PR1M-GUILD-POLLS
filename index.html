@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>[PR1M] GUILD POLLS - Event Scheduler</title>
+  <!-- Google Fonts for Orbitron (gaming/sci-fi title) and Inter (body content) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="role-pending">
+  <!-- Starfield background decoration -->
+  <div class="stars-container">
+    <div class="stars"></div>
+    <div class="stars2"></div>
+    <div class="stars3"></div>
+  </div>
+
+  <!-- Connection Page Overlay -->
+  <div id="login-overlay" class="login-overlay glassmorphic">
+    <div class="login-card card glassmorphic">
+      <div class="login-header">
+        <span class="logo-accent">[PR1M]</span>
+        <h1 class="logo-title">GUILD POLLS</h1>
+        <p class="login-subtitle">Foundation Galactic Frontier Event Planner</p>
+      </div>
+      <div class="login-body">
+        <div class="login-choice-buttons">
+          <button class="btn btn-primary btn-block" id="btn-choice-pilot">
+            <span>Pilot Access (Vote & View Results)</span>
+          </button>
+          
+          <div class="divider"><span>OR</span></div>
+          
+          <button class="btn btn-secondary btn-block" id="btn-choice-admin-panel">
+            <span>Admin Access</span>
+          </button>
+        </div>
+        
+        <!-- Hidden Admin password form, shown when admin choice is selected -->
+        <form id="admin-login-form" class="tech-form admin-form-hidden">
+          <div class="form-group">
+            <label for="admin-password">Admin Password</label>
+            <input 
+              type="password" 
+              id="admin-password" 
+              placeholder="Enter admin password" 
+              required
+              autocomplete="current-password"
+            >
+          </div>
+          <div class="admin-form-actions">
+            <button type="button" class="btn btn-secondary btn-sm" id="btn-admin-back">Back</button>
+            <button type="submit" class="btn btn-primary btn-sm">Connect</button>
+          </div>
+          <p class="login-error-msg id-hidden" id="login-error">Incorrect access code.</p>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main App Layout (normally hidden until role selection is complete) -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="logo-group">
+        <span class="logo-accent">[PR1M]</span>
+        <h1 class="logo-title">GUILD POLLS</h1>
+      </div>
+      <div class="user-status-group">
+        <span class="role-badge" id="current-role-badge">Pilot</span>
+        <button class="btn btn-secondary btn-sm btn-logout" id="btn-logout">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-container">
+    <!-- Left Column: Member inputs and Roster management -->
+    <section class="column column-left">
+      <!-- Member Timezone Registration Card -->
+      <div class="card glassmorphic" id="card-member-vote">
+        <div class="card-header">
+          <div class="card-icon">⚡</div>
+          <h2>Join the Event Poll</h2>
+        </div>
+        <div class="card-body">
+          <p class="card-subtitle">Enter your details so the system can optimize event start times for your timezone.</p>
+          
+          <form id="vote-form" class="tech-form">
+            <div class="form-group">
+              <label for="member-nickname">Pilot Nickname</label>
+              <input 
+                type="text" 
+                id="member-nickname" 
+                placeholder="e.g. Commander Nova" 
+                maxlength="20" 
+                required 
+                autocomplete="off"
+              >
+            </div>
+            
+            <div class="form-group">
+              <label for="member-timezone">Your Timezone / Local Time</label>
+              <select id="member-timezone" required>
+                <!-- Timezones will be populated dynamically by JavaScript -->
+              </select>
+            </div>
+            
+            <div class="timezone-preview-box">
+              <div class="preview-item">
+                <span class="preview-label">Your current time:</span>
+                <span class="preview-value" id="member-local-time">--:--</span>
+              </div>
+              <div class="preview-item">
+                <span class="preview-label">Cities in zone:</span>
+                <span class="preview-value cities-list" id="member-cities-preview">Select a timezone</span>
+              </div>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" id="btn-submit-vote">
+              <span>Submit Availability</span>
+              <div class="btn-glow"></div>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Guild Roster List Card -->
+      <div class="card glassmorphic" id="card-roster">
+        <div class="card-header">
+          <div class="card-icon">👥</div>
+          <h2>Guild Members (<span id="roster-count">0</span>)</h2>
+        </div>
+        <div class="card-body">
+          <div class="roster-actions admin-only">
+            <button class="btn btn-secondary btn-sm" id="btn-simulate">
+              <span>🤖 Simulate 20 Players</span>
+            </button>
+            <button class="btn btn-danger btn-sm" id="btn-clear-roster">
+              <span>🗑️ Clear All</span>
+            </button>
+          </div>
+          
+          <div class="roster-table-container">
+            <table class="roster-table">
+              <thead>
+                <tr>
+                  <th>Pilot</th>
+                  <th>Timezone (UTC)</th>
+                  <th>Local Time</th>
+                  <th>Status</th>
+                  <th class="admin-only">Action</th>
+                </tr>
+              </thead>
+              <tbody id="roster-list">
+                <!-- Roster entries populated dynamically -->
+                <tr class="empty-state-row">
+                  <td colspan="5" class="empty-state">No pilots registered. Add your nickname above or ask the admin to run a simulation!</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: Admin recommendations & Interactive Analytics -->
+    <section class="column column-right">
+      <!-- Admin Recommendations Card -->
+      <div class="card glassmorphic highlighted-card" id="card-recommendations">
+        <div class="card-header">
+          <div class="card-icon">🎯</div>
+          <h2>Optimal Event Start Windows</h2>
+        </div>
+        <div class="card-body">
+          <p class="card-subtitle">Real-time analysis recommending the two best UTC launch hours that cover the most players and timezones possible.</p>
+          
+          <div class="recommendations-container">
+            <!-- Recommendation 1 -->
+            <div class="recommendation-card slot-1" id="rec-slot-1">
+              <div class="rec-badge">Primary Choice (Recommended)</div>
+              <div class="rec-time" id="rec-time-1">--:-- UTC</div>
+              <div class="rec-local-time" id="rec-local-time-1">(--:-- Local time)</div>
+              <div class="rec-score-bar-container">
+                <div class="rec-score-label">Guild availability: <span id="rec-percentage-1">0%</span></div>
+                <div class="rec-score-bar"><div class="rec-score-fill" id="rec-fill-1" style="width: 0%;"></div></div>
+              </div>
+              <div class="rec-details" id="rec-details-1">Add members to begin the analysis.</div>
+            </div>
+
+            <!-- Recommendation 2 -->
+            <div class="recommendation-card slot-2" id="rec-slot-2">
+              <div class="rec-badge">Alternative Choice</div>
+              <div class="rec-time" id="rec-time-2">--:-- UTC</div>
+              <div class="rec-local-time" id="rec-local-time-2">(--:-- Local time)</div>
+              <div class="rec-score-bar-container">
+                <div class="rec-score-label">Guild availability: <span id="rec-percentage-2">0%</span></div>
+                <div class="rec-score-bar"><div class="rec-score-fill" id="rec-fill-2" style="width: 0%;"></div></div>
+              </div>
+              <div class="rec-details" id="rec-details-2">Calculation in progress...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Availability Heatmap Card -->
+      <div class="card glassmorphic" id="card-heatmap">
+        <div class="card-header">
+          <div class="card-icon">📊</div>
+          <h2>24-Hour Guild Availability (UTC)</h2>
+        </div>
+        <div class="card-body">
+          <p class="card-subtitle text-center">Number of available players per UTC hour. Hover over a bar to view active pilot details.</p>
+          
+          <!-- Availability Heatmap Graphic Container -->
+          <div class="heatmap-chart-wrapper">
+            <div class="heatmap-y-axis">
+              <span>100%</span>
+              <span>50%</span>
+              <span>0%</span>
+            </div>
+            <div class="heatmap-bars-container" id="heatmap-bars">
+              <!-- 24 bars populated dynamically -->
+            </div>
+          </div>
+          
+          <!-- Heatmap Legend -->
+          <div class="heatmap-legend">
+            <div class="legend-item"><span class="legend-color optimal"></span> Optimal Hour (Evening)</div>
+            <div class="legend-item"><span class="legend-color available"></span> Available (Awake)</div>
+            <div class="legend-item"><span class="legend-color sleeping"></span> Offline (Sleeping)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Import / Export Card (Admin Only) -->
+      <div class="card glassmorphic admin-only" id="card-data">
+        <div class="card-header">
+          <div class="card-icon">💾</div>
+          <h2>Import / Export Player List</h2>
+        </div>
+        <div class="card-body tech-data-io">
+          <p class="card-subtitle">Copy the configuration below to save it, or paste an existing list and click Import.</p>
+          <textarea id="data-io-textarea" placeholder="Paste player list JSON here to import..." autocomplete="off"></textarea>
+          <div class="data-actions">
+            <button class="btn btn-secondary btn-sm" id="btn-export-data">Copy JSON List</button>
+            <button class="btn btn-primary btn-sm" id="btn-import-data">Import List</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <p>&copy; 2026 [PR1M] GUILD POLLS &bull; Foundation Galactic Frontier Event Planner</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
