@@ -655,15 +655,10 @@ function renderHeatmap() {
       let tooltipText = `Hour: ${h.toString().padStart(2, '0')}:00 UTC\n`;
       tooltipText += `-----------------------\n`;
       tooltipText += `🟢 Optimal (Evening): ${optimalCount} (${Math.round(optimalHeight)}%)\n`;
-      if (optimalNames.length > 0) tooltipText += `   [ ${optimalNames.join(', ')} ]\n`;
-      
       tooltipText += `🟣 Available: ${availableCount} (${Math.round(availableHeight)}%)\n`;
-      if (availableNames.length > 0) tooltipText += `   [ ${availableNames.join(', ')} ]\n`;
+      tooltipText += `🔴 Sleeping: ${sleepingCount} (${Math.round(sleepingHeight)}%)`;
       
-      tooltipText += `🔴 Sleeping: ${sleepingCount} (${Math.round(sleepingHeight)}%)\n`;
-      if (sleepingNames.length > 0) tooltipText += `   [ ${sleepingNames.join(', ')} ]`;
-      
-      bar.setAttribute("data-tooltip", tooltipText.trim());
+      bar.setAttribute("data-tooltip", tooltipText);
     } else {
       const emptySeg = document.createElement("div");
       emptySeg.className = "bar-segment sleeping";
