@@ -23,7 +23,7 @@
   --color-available: #9d4edd;  /* Purple for Awake Availability */
   --color-sleeping: #1e293b;   /* Slate/Dark for Sleeping */
   
-  --font-title: 'Orbitron', -apple-system, sans-serif;
+  --font-title: 'Outfit', -apple-system, sans-serif;
   --font-body: 'Inter', -apple-system, sans-serif;
   
   --transition-speed: 0.25s;
