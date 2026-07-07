@@ -304,6 +304,7 @@ function updateTimezonePreview() {
 
 function handleTimezoneSelectChange() {
   updateTimezonePreview();
+  recalculateAll();
 }
 
 // Compute local time for specific offset
@@ -331,8 +332,8 @@ function updateTimePreviews() {
 
 // Recalculate calculations
 function recalculateAll() {
-  calculateRecommendations();
   renderHeatmap();
+  calculateRecommendations();
 }
 
 // Add/Update member timezone selection
@@ -562,9 +563,8 @@ function resetRecommendations() {
 }
 
 function displayRecommendation(slotNum, rec, totalPlayers) {
-  const now = new Date();
-  const timezoneOffsetHrs = -now.getTimezoneOffset() / 60;
-  const adminLocalHour = (rec.hour + timezoneOffsetHrs + 24) % 24;
+  const selectedOffset = parseFloat(timezoneSelect.value);
+  const adminLocalHour = (rec.hour + selectedOffset + 24) % 24;
   
   const utcTimeStr = `${rec.hour.toString().padStart(2, '0')}:00 UTC`;
   
