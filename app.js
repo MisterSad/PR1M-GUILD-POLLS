@@ -1,6 +1,34 @@
 /* ==========================================================================
-   [PR1M] GUILD POLLS - Application Core logic (English Role-Based Version)
+   [PR1M] GUILD POLLS - Application Core logic (Firebase Cloud Sync Version)
    ========================================================================== */
+
+// Import Firebase SDK functions from official Web CDN
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { 
+  getFirestore, 
+  collection, 
+  doc, 
+  setDoc, 
+  deleteDoc, 
+  onSnapshot, 
+  getDocs, 
+  writeBatch 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyBnzI-KwojvoI-HoOGfhuWR2aU6i7g2Fvk",
+  authDomain: "pr1m-guild-polls.firebaseapp.com",
+  projectId: "pr1m-guild-polls",
+  storageBucket: "pr1m-guild-polls.firebasestorage.app",
+  messagingSenderId: "700597742467",
+  appId: "1:700597742467:web:dfd1a4055d5816c75964b6",
+  measurementId: "G-PW69ZL0RKT"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 // Timezone Offset Database
 const TIMEZONE_DB = [
@@ -44,23 +72,15 @@ const TIMEZONE_DB = [
 
 // Hardcoded gaming parameters for automatic calculations
 const GAMING_PARAMS = {
-  primeStart: 18,  // 18:00 (6 PM) local time - Start of prime time
-  primeEnd: 23,    // 23:00 (11 PM) local time - End of prime time
-  awakeStart: 8    // 08:00 (8 AM) local time - Awake start (below this, sleeping)
+  primeStart: 18,  // 18:00 (6 PM) local time
+  primeEnd: 23,    // 23:00 (11 PM) local time
+  awakeStart: 8    // 08:00 (8 AM) local time
 };
 
 // Admin Password (stored as SHA-256 hash of "STELLA2026")
 const ADMIN_PASSWORD_HASH = "0902a2d53977b17e2899bf131d948c337cef043f8f7c5caac657c7aa03406315";
 
-// Helper: SHA-256 hashing using native Web Crypto API
-async function sha256(message) {
-  const msgBuffer = new TextEncoder().encode(message);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
-
-// App State
+// App State (Synchronized with Firestore in real-time)
 let state = {
   roster: []
 };
@@ -93,7 +113,6 @@ const btnLogout = document.getElementById("btn-logout");
 
 // Init Application
 document.addEventListener("DOMContentLoaded", () => {
-  loadState();
   populateTimezoneDropdown();
   autoSelectUserTimezone();
   updateTimePreviews();
@@ -101,6 +120,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Setup Authentication Flow
   setupAuthEvents();
   checkPersistedRole();
+  
+  // Bind Real-Time Firestore Synchronization
+  setupRealtimeSync();
   
   // Start dynamic clock updater (every second)
   setInterval(() => {
@@ -117,6 +139,27 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btn-export-data").addEventListener("click", exportRosterData);
   document.getElementById("btn-import-data").addEventListener("click", importRosterData);
 });
+
+// Setup Realtime Synchronization with Cloud Firestore
+function setupRealtimeSync() {
+  onSnapshot(collection(db, "pilots"), (snapshot) => {
+    const updatedRoster = [];
+    snapshot.forEach(doc => {
+      updatedRoster.push(doc.data());
+    });
+    
+    // Sort alphabetically by pilot nickname to prevent layout shifting
+    updatedRoster.sort((a, b) => a.name.localeCompare(b.name));
+    
+    state.roster = updatedRoster;
+    
+    // Re-render and recalculate in real-time
+    renderRoster();
+    recalculateAll();
+  }, (error) => {
+    console.error("Firestore sync error: ", error);
+  });
+}
 
 // Setup Authentication Events
 function setupAuthEvents() {
@@ -175,7 +218,7 @@ function loginAsRole(role) {
     currentRoleBadge.textContent = "Pilot";
   }
   
-  // Trigger full page calculations and rendering
+  // Trigger rendering and calculations
   renderRoster();
   recalculateAll();
 }
@@ -273,23 +316,6 @@ function updateTimePreviews() {
   localTimePreview.textContent = formatTime(localDate);
 }
 
-// Save & load roster data
-function saveState() {
-  localStorage.setItem("guild_poll_state_simplified", JSON.stringify(state));
-}
-
-function loadState() {
-  const raw = localStorage.getItem("guild_poll_state_simplified");
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw);
-      if (parsed.roster) state.roster = parsed.roster;
-    } catch (e) {
-      console.error("Failed to parse local storage state", e);
-    }
-  }
-}
-
 // Recalculate calculations
 function recalculateAll() {
   calculateRecommendations();
@@ -297,7 +323,7 @@ function recalculateAll() {
 }
 
 // Add/Update member timezone selection
-function handleVoteSubmit(e) {
+async function handleVoteSubmit(e) {
   e.preventDefault();
   
   const nickname = nicknameInput.value.trim();
@@ -305,30 +331,36 @@ function handleVoteSubmit(e) {
   
   if (!nickname) return;
   
-  const existingIdx = state.roster.findIndex(p => p.name.toLowerCase() === nickname.toLowerCase());
-  
-  if (existingIdx !== -1) {
-    state.roster[existingIdx].offset = offset;
-  } else {
-    state.roster.push({
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-      name: nickname,
-      offset: offset
-    });
-  }
-  
-  nicknameInput.value = "";
-  saveState();
-  renderRoster();
-  recalculateAll();
+  const docId = nickname.toLowerCase().replace(/\s+/g, "_");
   
   const submitBtn = document.getElementById("btn-submit-vote");
-  submitBtn.style.background = "linear-gradient(135deg, #10b981, #059669)";
-  submitBtn.querySelector("span").textContent = "Availability submitted!";
-  setTimeout(() => {
-    submitBtn.style.background = "";
-    submitBtn.querySelector("span").textContent = "Submit Availability";
-  }, 2000);
+  submitBtn.disabled = true;
+  
+  try {
+    // Write directly to Cloud Firestore
+    await setDoc(doc(db, "pilots", docId), {
+      id: docId,
+      name: nickname,
+      offset: offset,
+      timestamp: Date.now()
+    });
+    
+    nicknameInput.value = "";
+    
+    // Flash submission status
+    submitBtn.style.background = "linear-gradient(135deg, #10b981, #059669)";
+    submitBtn.querySelector("span").textContent = "Availability submitted!";
+  } catch (err) {
+    console.error("Firestore setDoc failed:", err);
+    submitBtn.style.background = "linear-gradient(135deg, #ef4444, #dc2626)";
+    submitBtn.querySelector("span").textContent = "Sync Error!";
+  } finally {
+    submitBtn.disabled = false;
+    setTimeout(() => {
+      submitBtn.style.background = "";
+      submitBtn.querySelector("span").textContent = "Submit Availability";
+    }, 2000);
+  }
 }
 
 // Compute player status at specific UTC hour
@@ -414,26 +446,39 @@ function updateRosterClocks() {
   });
 }
 
-// Remove player (Admin Only)
-window.removePlayer = function(id) {
+// Remove player (Admin Only - Syncs to Cloud)
+window.removePlayer = async function(id) {
   if (currentRole !== "admin") {
     alert("Action denied: Only administrators can remove players.");
     return;
   }
-  state.roster = state.roster.filter(p => p.id !== id);
-  saveState();
-  renderRoster();
-  recalculateAll();
+  
+  try {
+    await deleteDoc(doc(db, "pilots", id));
+  } catch (err) {
+    console.error("Firestore deleteDoc failed:", err);
+    alert("Failed to remove player from database.");
+  }
 };
 
-// Clear entire roster (Admin Only)
-function clearRoster() {
+// Clear entire roster (Admin Only - Syncs to Cloud)
+async function clearRoster() {
   if (currentRole !== "admin") return;
+  
   if (confirm("Are you sure you want to remove all players from the poll?")) {
-    state.roster = [];
-    saveState();
-    renderRoster();
-    recalculateAll();
+    try {
+      const querySnapshot = await getDocs(collection(db, "pilots"));
+      const batch = writeBatch(db);
+      
+      querySnapshot.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      
+      await batch.commit();
+    } catch (err) {
+      console.error("Firestore batch delete failed:", err);
+      alert("Failed to clear database.");
+    }
   }
 }
 
@@ -630,8 +675,8 @@ function highlightHeatmapBars(primeHour, altHour) {
   if (altBar) altBar.classList.add("active-alternative");
 }
 
-// Roster simulation generator (Admin Only)
-function simulateRoster() {
+// Roster simulation generator (Admin Only - Syncs to Cloud)
+async function simulateRoster() {
   if (currentRole !== "admin") return;
   
   const names = [
@@ -643,24 +688,30 @@ function simulateRoster() {
   ];
   
   const commonOffsets = [-8, -5, -3, 0, 1, 2, 3, 5.5, 8, 9, 10, 12];
-  const simulatedRoster = [];
-  
   const count = 20;
   const shuffledNames = [...names].sort(() => 0.5 - Math.random());
   
-  for (let i = 0; i < count; i++) {
-    const randomOffset = commonOffsets[Math.floor(Math.random() * commonOffsets.length)];
-    simulatedRoster.push({
-      id: Date.now().toString() + i + Math.random().toString(36).substr(2, 5),
-      name: shuffledNames[i],
-      offset: randomOffset
-    });
+  try {
+    const batch = writeBatch(db);
+    
+    for (let i = 0; i < count; i++) {
+      const randomOffset = commonOffsets[Math.floor(Math.random() * commonOffsets.length)];
+      const nickname = shuffledNames[i];
+      const docId = nickname.toLowerCase().replace(/\s+/g, "_");
+      
+      batch.set(doc(db, "pilots", docId), {
+        id: docId,
+        name: nickname,
+        offset: randomOffset,
+        timestamp: Date.now() + i
+      });
+    }
+    
+    await batch.commit();
+  } catch (err) {
+    console.error("Firestore batch write (simulation) failed:", err);
+    alert("Failed to write simulated players to database.");
   }
-  
-  state.roster = simulatedRoster;
-  saveState();
-  renderRoster();
-  recalculateAll();
 }
 
 // Export roster data (Admin Only)
@@ -679,8 +730,8 @@ function exportRosterData() {
   }
 }
 
-// Import roster data (Admin Only)
-function importRosterData() {
+// Import roster data (Admin Only - Syncs to Cloud)
+async function importRosterData() {
   if (currentRole !== "admin") return;
   
   const rawData = dataIoTextarea.value.trim();
@@ -708,10 +759,18 @@ function importRosterData() {
       });
     });
     
-    state.roster = validatedRoster;
-    saveState();
-    renderRoster();
-    recalculateAll();
+    const batch = writeBatch(db);
+    validatedRoster.forEach(player => {
+      const docId = player.name.toLowerCase().replace(/\s+/g, "_");
+      batch.set(doc(db, "pilots", docId), {
+        id: docId,
+        name: player.name,
+        offset: player.offset,
+        timestamp: Date.now()
+      });
+    });
+    
+    await batch.commit();
     dataIoTextarea.value = "";
     alert(`Successfully imported ${validatedRoster.length} guild pilots!`);
   } catch (err) {
