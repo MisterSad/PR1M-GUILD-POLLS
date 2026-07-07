@@ -182,14 +182,18 @@ function setupAuthEvents() {
   
   adminLoginForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const enteredPass = adminPasswordInput.value;
-    const hashedPass = await sha256(enteredPass);
-    if (hashedPass === ADMIN_PASSWORD_HASH) {
-      loginAsRole("admin");
-    } else {
-      loginErrorMsg.classList.remove("id-hidden");
-      adminPasswordInput.value = "";
-      adminPasswordInput.focus();
+    try {
+      const enteredPass = adminPasswordInput.value;
+      const hashedPass = await sha256(enteredPass);
+      if (hashedPass === ADMIN_PASSWORD_HASH) {
+        loginAsRole("admin");
+      } else {
+        loginErrorMsg.classList.remove("id-hidden");
+        adminPasswordInput.value = "";
+        adminPasswordInput.focus();
+      }
+    } catch (err) {
+      alert("Verification failed: " + err.message);
     }
   });
   
