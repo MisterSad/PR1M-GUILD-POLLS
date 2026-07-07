@@ -80,6 +80,14 @@ const GAMING_PARAMS = {
 // Admin Password (stored as SHA-256 hash of "STELLA2026")
 const ADMIN_PASSWORD_HASH = "0902a2d53977b17e2899bf131d948c337cef043f8f7c5caac657c7aa03406315";
 
+// Helper: SHA-256 hashing using native Web Crypto API
+async function sha256(message) {
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 // App State (Synchronized with Firestore in real-time)
 let state = {
   roster: []
